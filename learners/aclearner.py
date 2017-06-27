@@ -17,8 +17,8 @@ def ensure_shared_grads(model, shared_model):
 class A3CLearner:
     def __init__(self, env, shared_model, optimizer, args):
         self.env = env
-        self.model = deepcopy(shared_model.clone())
-        self.mother_model = shared_model
+        self.model = deepcopy(shared_model)
+        self.shared_model = shared_model
         self.optimizer = optimizer
 
         self.values = []
@@ -28,10 +28,12 @@ class A3CLearner:
 
         self.gamma = args.gamma
         self.tau = args.tau
+        self.num_steps = args.num_steps
+        self.max_episode_length = args.max_episode_length
 
     def train(self):
-        model.train()
-        state = env.reset()
+        self.model.train()
+        state = self.env.reset()
         state = torch.from_numpy(state)
         episode_length = 0
         done = True
@@ -39,7 +41,7 @@ class A3CLearner:
 
         while True:
             episode_length += 1
-            self.model.load_state_dict(mother_model.state_dict())
+            self.model.load_state_dict(self.shared_model.state_dict())
             if done:
                 cx = Variable(torch.zeros(1, 256))
                 hx = Variable(torch.zeros(1, 256))
@@ -47,26 +49,25 @@ class A3CLearner:
                 cx = Variable(cx.data)
                 hx = Variable(hx.data)
 
-            for step in range(args.num_steps):
-                value, logit, (hx, cx) = model(
+            for step in range(self.num_steps):
+                value, logit, (hx, cx) = self.model(
                     (Variable(state.unsqueeze(0)), (hx, cx)))
                 prob = F.softmax(logit)
-                log_prob = F.log_softmax(logit)
                 action = prob.multinomial()
                 entropy = -(prob * prob.log()).sum(1)
                 self.entropies.append(entropy)
 
-                state, reward, done, _ = env.step(action.data.numpy())
-                done = done or episode_length >= args.max_episode_length
+                state, reward, done, _ = self.env.step(action.data.numpy())
+                done = done or episode_length >= self.max_episode_length
                 reward = max(min(reward, 1), -1)
 
                 if done:
                     episode_length = 0
-                    state = env.reset()
+                    state = self.env.reset()
 
                 state = torch.from_numpy(state)
                 self.values.append(value)
-                self.log_probs.append(log_prob)
+                self.actions.append(action)
                 self.rewards.append(reward)
 
                 if done:
@@ -74,9 +75,11 @@ class A3CLearner:
 
             R = torch.zeros(1, 1)
             if not done:
-                value, _, _ = model((Variable(state.unsqueeze(0)), (hx, cx)))
+                value, _, _ = self.model((Variable(state.unsqueeze(0)), (hx, cx)))
                 R = value.data
             self.values.append(Variable(R))
+
+            self.learn()
             
     def learn(self):
         gae = torch.zeros(1, 1)
@@ -95,13 +98,20 @@ class A3CLearner:
                     self.values[i + 1].data - self.values[i].data
             gae = gae * self.gamma * self.tau + delta_t
 
-            policy_loss -= self.log_probs[i] * Variable(gae) + 0.01 *\
-                    self.entropies[i]
+            policy_loss -= 0.01 * self.entropies[i]
+            self.actions[i].reinforce(gae[0, 0])
 
-        optimizer.zero_grad()
+        self.optimizer.zero_grad()
 
-        (policy_loss + 0.5 * value_loss).backward()
-        torch.nn.utils.clip_grad_norm(model.parameters(), 40)
+        variables = self.actions + [policy_loss + 0.5 * value_loss]
+        grad_variables = [None] * len(self.actions) + [torch.ones(1, 1)]
+        torch.autograd.backward(variables, grad_variables)
+        torch.nn.utils.clip_grad_norm(self.model.parameters(), 40)
 
-        ensure_shared_grads(model, shared_model)
-        optimizer.step()
+        ensure_shared_grads(self.model, self.shared_model)
+        self.optimizer.step()
+
+        self.actions = []
+        self.values = []
+        self.rewards = []
+        self.entropies = []

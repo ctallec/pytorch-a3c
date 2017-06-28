@@ -4,17 +4,13 @@ import sys
 
 import torch
 import torch.nn.functional as F
+
 from torch.autograd import Variable
 
 from copy import deepcopy
+from learners.utils import ensure_shared_grads
 
-def ensure_shared_grads(model, shared_model):
-    for param, shared_param in zip(model.parameters(), shared_model.parameters()):
-        if shared_param.grad is not None:
-            return
-        shared_param._grad = param.grad
-
-class A3CLearner:
+class ACLearner:
     def __init__(self, env, shared_model, optimizer, args):
         self.env = env
         self.model = deepcopy(shared_model)

@@ -14,7 +14,7 @@ def ensure_shared_grads(model, shared_model):
             return
         shared_param._grad = param.grad
 
-class A3CLearner:
+class ACLearner:
     def __init__(self, env, shared_model, optimizer, args):
         self.env = env
         self.model = deepcopy(shared_model)

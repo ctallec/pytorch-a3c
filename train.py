@@ -26,6 +26,6 @@ def train(rank, args, shared_model, optimizer=None):
 
     model.train()
 
-    learner = A3CLearner(env, shared_model, optimizer, args)
+    learner = ACLearner(env, shared_model, optimizer, args)
 
     learner.train()

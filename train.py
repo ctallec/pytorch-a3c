@@ -15,20 +15,24 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 
 
-def train(rank, args, shared_model, optimizer=None):
-    torch.manual_seed(args.seed + rank)
+def train(agent, rank, args, shared_model, optimizer=None):
+    try:
+        torch.manual_seed(args.seed + rank)
 
-    env = create_atari_env(args.env_name)
-    env.seed(args.seed + rank)
-    numpy.random.seed(args.seed + rank)
+        env = create_atari_env(args.env_name)
+        env.seed(args.seed + rank)
+        numpy.random.seed(args.seed + rank)
 
-    model = ActorCritic(env.observation_space.shape[0], env.action_space)
+        model = ActorCritic(env.observation_space.shape[0], env.action_space)
 
-    if optimizer is None:
-        optimizer = optim.Adam(shared_model.parameters(), lr=args.lr)
+        if optimizer is None:
+            optimizer = optim.Adam(shared_model.parameters(), lr=args.lr)
 
-    model.train()
+        model.train()
 
-    learner = ArtLearner(env, shared_model, optimizer, args)
+        agent_dict = {'ac':'ACLearner', 'art':'ArtLearner'}
+        learner = eval(agent_dict[agent])(env, shared_model, optimizer, args)
 
-    learner.train()
+        learner.train()
+    except KeyboardInterrupt:
+        print('\ntrain process #{} interrupted\n'.format(rank))

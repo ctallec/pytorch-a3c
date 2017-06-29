@@ -24,7 +24,7 @@ class ACLearner:
 
         self.gamma = args.gamma
         self.tau = args.tau
-        self.num_steps = args.num_steps
+        self.num_steps = args.num_steps if 'num_steps' in args else 0
         self.max_episode_length = args.max_episode_length
 
     def train(self):

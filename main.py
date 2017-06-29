@@ -79,4 +79,4 @@ if __name__ == '__main__':
         for p in processes:
                 p.join()
     except KeyboardInterrupt:
-        print('\n main thread interrupted\n')
+        print('\nmain thread interrupted\n')

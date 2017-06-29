@@ -1,3 +1,4 @@
+import json
 import math
 import os
 import sys
@@ -30,6 +31,8 @@ def test(rank, args, shared_model):
         done = True
 
         start_time = time.time()
+        log_stream = open(os.path.join('logs', json.dumps(vars(args),
+                                                          separators=(',',':'))), 'w')
 
         # a quick hack to prevent the agent from stucking
         actions = deque(maxlen=100)
@@ -64,6 +67,10 @@ def test(rank, args, shared_model):
                     time.strftime("%Hh %Mm %Ss",
                                   time.gmtime(time.time() - start_time)),
                     reward_sum, episode_length))
+
+                log_stream.write('{} {}\n'.format(reward_sum, episode_length))
+                log_stream.flush()
+
                 reward_sum = 0
                 episode_length = 0
                 actions.clear()
@@ -73,3 +80,4 @@ def test(rank, args, shared_model):
             state = torch.from_numpy(state)
     except KeyboardInterrupt:
         print('\ntest process #{} interrupted\n'.format(rank))
+        log_stream.close()

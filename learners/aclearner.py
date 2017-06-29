@@ -4,15 +4,11 @@ import sys
 
 import torch
 import torch.nn.functional as F
+
 from torch.autograd import Variable
 
 from copy import deepcopy
-
-def ensure_shared_grads(model, shared_model):
-    for param, shared_param in zip(model.parameters(), shared_model.parameters()):
-        if shared_param.grad is not None:
-            return
-        shared_param._grad = param.grad
+from learners.utils import ensure_shared_grads
 
 class ACLearner:
     def __init__(self, env, shared_model, optimizer, args):
@@ -28,7 +24,7 @@ class ACLearner:
 
         self.gamma = args.gamma
         self.tau = args.tau
-        self.num_steps = args.num_steps
+        self.num_steps = args.num_steps if 'num_steps' in args else 0
         self.max_episode_length = args.max_episode_length
 
     def train(self):

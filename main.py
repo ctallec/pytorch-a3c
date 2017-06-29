@@ -18,7 +18,14 @@ import my_optim
 # Based on
 # https://github.com/pytorch/examples/tree/master/mnist_hogwild
 # Training settings
-parser = argparse.ArgumentParser(description='A3C')
+parser = argparse.ArgumentParser(description='Asynchronous AC and Art')
+
+subparsers = parser.add_subparsers(dest='agent')
+subparsers.required = True
+
+ac_parser = subparsers.add_parser('ac', help='actor critic')
+art_parser = subparsers.add_parser('art', help='art')
+
 parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
                     help='learning rate (default: 0.0001)')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
@@ -29,14 +36,15 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--num-processes', type=int, default=4, metavar='N',
                     help='how many training processes to use (default: 4)')
-parser.add_argument('--num-steps', type=int, default=20, metavar='NS',
-                    help='number of forward steps in A3C (default: 20)')
 parser.add_argument('--max-episode-length', type=int, default=10000, metavar='M',
                     help='maximum length of an episode (default: 10000)')
 parser.add_argument('--env-name', default='PongDeterministic-v4', metavar='ENV',
                     help='environment to train on (default: PongDeterministic-v4)')
 parser.add_argument('--no-shared', default=False, metavar='O',
                     help='use an optimizer without shared momentum.')
+
+ac_parser.add_argument('--num-steps', type=int, default=20, metavar='NS',
+                    help='number of forward steps in A3C (default: 20)')
 
 
 if __name__ == '__main__':
@@ -64,8 +72,11 @@ if __name__ == '__main__':
     processes.append(p)
 
     for rank in range(0, args.num_processes):
-        p = mp.Process(target=train, args=(rank, args, shared_model, optimizer))
+        p = mp.Process(target=train, args=(args.agent, rank, args, shared_model, optimizer))
         p.start()
         processes.append(p)
-    for p in processes:
-        p.join()
+    try:
+        for p in processes:
+                p.join()
+    except KeyboardInterrupt:
+        print('\n main thread interrupted\n')

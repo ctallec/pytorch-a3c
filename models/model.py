@@ -72,3 +72,44 @@ class ActorCritic(torch.nn.Module):
         x = hx
 
         return self.critic_linear(x), self.actor_linear(x), (hx, cx)
+
+class DichoActorCritic(ActorCritic):
+
+    def __init__(self, num_inputs, action_space, max_temp=4096):
+        super().__init__(num_inputs, action_space)
+        delattr(self, 'critic_linear')
+
+        i = 0
+        k = 1
+        while k <= max_temp:
+            module_name = 'critic_linear_{}'.format(i)
+            if module_name not in dir(self):
+                self.add_module(module_name, nn.Linear(256, 1))
+                getattr(self, module_name).weight.data = normalized_columns_initializer(
+                    getattr(self, module_name).weight.data, 1.0)
+                getattr(self, module_name).bias.data.fill_(0)
+            i += 1
+            k *= 2
+
+    def forward(self, inputs, T=0):
+        inputs, (hx, cx) = inputs
+        x = F.elu(self.conv1(inputs))
+        x = F.elu(self.conv2(x))
+        x = F.elu(self.conv3(x))
+        x = F.elu(self.conv4(x))
+
+        x = x.view(-1, 32 * 3 * 3)
+        hx, cx = self.lstm(x, (hx, cx))
+        x = hx
+
+        i = 0
+        k = 1
+        value_estimate = 0
+
+        while k <= T:
+            module_name = 'critic_linear_{}'.format(i)
+            value_estimate += getattr(self, module_name)(x)
+            i += 1
+            k *= 2
+
+        return value_estimate, self.actor_linear(x), (hx, cx)

@@ -46,6 +46,18 @@ parser.add_argument('--no-shared', default=False, metavar='O',
 ac_parser.add_argument('--num-steps', type=int, default=20, metavar='NS',
                     help='number of forward steps in A3C (default: 20)')
 
+art_parser.add_argument('--dicho', action='store_true',
+                       help='model decomposes value function dichotomically')
+art_subparsers = art_parser.add_subparsers(dest='lambda_type')
+
+constant_art_parser = art_subparsers.add_parser('constant')
+decaying_art_parser = art_subparsers.add_parser('decaying')
+
+decaying_art_parser.add_argument('--alpha', default=3, metavar='A',
+                                 help='alpha parameter of art')
+decaying_art_parser.add_argument('--L0', default=100, metavar='L0',
+                                 help='L0 parameter of art')
+
 
 if __name__ == '__main__':
     os.environ['OMP_NUM_THREADS'] = '1'  

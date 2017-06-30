@@ -11,11 +11,16 @@ class ArtLearner(ACLearner):
         T = 0
         while X == 0:
             T += 1
-            X = np.random.binomial(1, 1-self.gamma)
+            lambda_value = self.lambda_function(T)
+            X = np.random.binomial(1, 1-lambda_value)
         return T
         
     def __init__(self, env, shared_model, optimizer, args):
         super().__init__(env, shared_model, optimizer, args)
+        self.lambda_function = {
+            'decaying':lambda t: 1 - (args.alpha - 1) / ((args.alpha - 2) * args.L0 + t),
+            'constant':lambda t: self.gamma
+        }[args.lambda_type]
         self.num_steps = self.draw_truncation()
 
     def learn(self):
@@ -26,7 +31,7 @@ class ArtLearner(ACLearner):
         policy_loss = 0
 
         for i in reversed(range(len(self.rewards))):
-            R = R + self.rewards[i]
+            R = self.gamma / self.lambda_function(i+1) * R + self.rewards[i]
             advantage = Variable(R) - self.values[i]
             value_loss += 0.5 * advantage.pow(2)
 

@@ -5,6 +5,7 @@ import sys
 import torch
 import torch.nn.functional as F
 
+from inspect import signature
 from torch.autograd import Variable
 
 from copy import deepcopy
@@ -46,8 +47,8 @@ class ACLearner:
                 hx = Variable(hx.data)
 
             for step in range(self.num_steps):
-                value, logit, (hx, cx) = self.model(
-                    (Variable(state.unsqueeze(0)), (hx, cx)))
+                value, logit, (hx, cx) = \
+                        self.model_forward(Variable(state.unsqueeze(0)), hx, cx, step)
                 prob = F.softmax(logit)
                 action = prob.multinomial()
                 entropy = -(prob * prob.log()).sum(1)
@@ -77,6 +78,13 @@ class ACLearner:
 
             self.learn()
             
+    def model_forward(self, state, hx, cx, step):
+        sig = signature(self.model)
+        if len(sig.parameters) == 2:
+            return self.model((state, (hx, cx)))
+        else:
+            return self.model((state, (hx, cx)), step)
+
     def learn(self):
         gae = torch.zeros(1, 1)
         R = self.values[-1]

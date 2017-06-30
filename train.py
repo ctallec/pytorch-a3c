@@ -11,6 +11,7 @@ from envs import create_atari_env
 from learners import ACLearner
 from learners import ArtLearner
 from models import ActorCritic
+from models import DichoActorCritic
 from torch.autograd import Variable
 from torchvision import datasets, transforms
 
@@ -23,7 +24,8 @@ def train(agent, rank, args, shared_model, optimizer=None):
         env.seed(args.seed + rank)
         numpy.random.seed(args.seed + rank)
 
-        model = ActorCritic(env.observation_space.shape[0], env.action_space)
+        model_class = 'DichoActorCritic' if args.dicho else 'ActorCritic'
+        model = eval(model_class)(env.observation_space.shape[0], env.action_space)
 
         if optimizer is None:
             optimizer = optim.Adam(shared_model.parameters(), lr=args.lr)

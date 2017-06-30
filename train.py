@@ -10,7 +10,7 @@ import torch.optim as optim
 from envs import create_atari_env
 from learners import ACLearner
 from learners import ArtLearner
-from model import ActorCritic
+from models import ActorCritic
 from torch.autograd import Variable
 from torchvision import datasets, transforms
 

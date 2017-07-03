@@ -10,9 +10,9 @@ import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.nn.functional as F
 from envs import create_atari_env
-from models import ActorCritic
 from train import train
 from test import test
+from utils import build_model
 import my_optim
 
 # Based on
@@ -48,6 +48,9 @@ ac_parser.add_argument('--num-steps', type=int, default=20, metavar='NS',
 
 art_parser.add_argument('--dicho', action='store_true',
                        help='model decomposes value function dichotomically')
+art_parser.add_argument('--remove-constant', action='store_true',
+                        help='the value model learns a model of the form c * T'
+                        '+ V')
 art_subparsers = art_parser.add_subparsers(dest='lambda_type')
 
 constant_art_parser = art_subparsers.add_parser('constant')
@@ -67,8 +70,8 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     env = create_atari_env(args.env_name)
-    shared_model = ActorCritic(
-        env.observation_space.shape[0], env.action_space)
+    shared_model = build_model(env.observation_space.shape[0],
+                               env.action_space, args)
     shared_model.share_memory()
 
     if args.no_shared:

@@ -60,7 +60,7 @@ class ActorCritic(torch.nn.Module):
 
         self.train()
 
-    def forward(self, inputs):
+    def forward(self, inputs, T=0):
         inputs, (hx, cx) = inputs
         x = F.elu(self.conv1(inputs))
         x = F.elu(self.conv2(x))
@@ -75,7 +75,7 @@ class ActorCritic(torch.nn.Module):
 
 class DichoActorCritic(ActorCritic):
 
-    def __init__(self, num_inputs, action_space, max_temp=4096):
+    def __init__(self, num_inputs, action_space, max_temp=65536):
         super().__init__(num_inputs, action_space)
         delattr(self, 'critic_linear')
 
@@ -104,7 +104,7 @@ class DichoActorCritic(ActorCritic):
 
         i = 0
         k = 1
-        value_estimate = 0
+        value_estimate = Variable(torch.Tensor([[0]]))
 
         while k <= T:
             module_name = 'critic_linear_{}'.format(i)
@@ -113,3 +113,14 @@ class DichoActorCritic(ActorCritic):
             k *= 2
 
         return value_estimate, self.actor_linear(x), (hx, cx)
+
+class AddTemporalConstant(nn.Module):
+    def __init__(self, actor_critic_model):
+        super().__init__()
+        self.actor_critic_model = actor_critic_model
+
+        self.constant = nn.Parameter(torch.Tensor(1, 1).zero_())
+
+    def forward(self, inputs, T=0):
+        value_estimate, prob_policy, (hx, cx) = self.actor_critic_model(inputs, T)
+        return value_estimate + self.constant * T, prob_policy, (hx, cx)
